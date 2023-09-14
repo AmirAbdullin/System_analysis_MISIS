@@ -1,9 +1,15 @@
 import sys
 import pandas as pd
 
+
+if len(sys.argv) != 4:
+    print("Использование: python script.py <csv файл> <номер строки> <номер столбца>")
+    sys.exit(1)
+
+
 csv_file = sys.argv[1]
-search_string = sys.argv[2]
-column_name = sys.argv[3]
+row_index = int(sys.argv[2])
+column_index = int(sys.argv[3])
 
 
 try:
@@ -19,12 +25,8 @@ except pd.errors.ParserError:
     sys.exit(1)
 
 
-filtered_df = df[df[column_name].str.contains(search_string, case=False, na=False)]
-
-
-print("Результат:")
-print(filtered_df)
-
-
-
-
+try:
+    cell_value = df.iloc[row_index, column_index]
+    print(f"Значение в ячейке ({row_index}, {column_index}): {cell_value}")
+except IndexError:
+    print("Некорректные индексы строки и столбца. Убедитесь, что они существуют в таблице.")
