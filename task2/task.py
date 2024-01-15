@@ -1,76 +1,67 @@
+from io import StringIO
 import csv
-import argparse
 
-def _read_graph_from_csv(filepath):
-    dict = {}
-    with open(filepath, 'r') as table:
-        csvreader = csv.reader(table)
-        for row in csvreader:
-            #print(row)
-            if row[0] not in dict:
-                dict[row[0]] = row[1:]
+class GraphAnalyzer:
+    def __init__(self, csvString):
+        self.graph = dict()
+        self.nodes = set()
+        self.starts = set()
+        self.not_starts = set()
+        self.result = None
+
+        self.build_graph(csvString)
+
+    def build_graph(self, csvString):
+        f = StringIO(csvString)
+        reader = csv.reader(f, delimiter=',')
+
+        for row in reader:
+            a, b = row[0], row[1]
+
+            if a in self.graph:
+                self.graph[a].append(b)
             else:
-                dict[row[0]].extend(row[1])
+                self.graph[a] = [b]
 
-    return dict
+            self.nodes.add(a)
+            self.nodes.add(b)
+            self.not_starts.add(b)
 
-def _get_keys(graph):
-    all_keys = []
-    for key in graph:
-        if key not in all_keys:
-            all_keys.append(key)
-        for elem in graph[key]:
-            if elem not in all_keys:
-                all_keys.append(elem)
-    
-    return all_keys, len(all_keys)
+        for node in self.nodes:
+            if node not in self.graph:
+                self.graph[node] = []
+            if node not in self.not_starts:
+                self.starts.add(node)
 
-def _compute_matrix(graph, ln):
-    matrix = [[0 for _ in range(ln)] for _ in range(ln)]
-    
-    for k in graph:
-        for v in graph[k]:
-            matrix[int(k) - 1][int(v) - 1] = 1
-            matrix[int(v) - 1][int(k) - 1] = -1
+    def bfs(self, cur, prev, neighbours):
+        parent = 1 if (prev > 0) else 0
 
-    return matrix
+        self.result[cur][1] += parent
+        self.result[cur][3] += prev - parent
+        self.result[cur][0] = len(self.graph[cur])
+        self.result[cur][4] = neighbours
 
-def make_csv(matrix, file_name='task_res.csv'):
-    with open(file_name, 'w', newline='') as f:
-        writer = csv.writer(f, delimiter=',')
-        for row in matrix:
-            writer.writerow(row)
-        
+        for child in self.graph[cur]:
+            self.result[cur][2] += self.bfs(child, prev + 1, len(self.graph[cur]) - 1)
 
-def task(filename):
-    graph = _read_graph_from_csv(filename)
-    _, ln = _get_keys(graph)
-    matrix = _compute_matrix(graph, ln)
+        self.result[cur][2] -= self.result[cur][0]
 
-    result = [[0 for _ in range(5)] for _ in range(ln)]
+        return self.result[cur][2] + self.result[cur][0] + 1
 
-    for i in range(len(matrix)):
-        for j in range(len(matrix[i])):
-            if matrix[i][j] == 1:
-                result[i][0] += 1
-                for index, value in enumerate(matrix[j]):
-                    if value == 1:
-                        result[i][2] += 1
-            if matrix[i][j] == -1:
-                result[i][1] += 1
-                for index, value in enumerate(matrix[j]):
-                    if value == -1:
-                        result[i][3] += 1
-                    if value == 1 and index != i:
-                        result[i][4] += 1
-    make_csv(result)
-    
+    def analyze_graph(self):
+        self.result = {node: [0, 0, 0, 0, 0] for node in self.nodes}
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+        for start in self.starts:
+            self.bfs(start, 0, 0)
 
-    parser.add_argument('filepath')
+        keys = sorted(self.result.keys())
+        values = [self.result[key] for key in keys]
 
-    args = parser.parse_args()
+        return '\n'.join([",".join(str(el) for el in value) for value in values])
 
-    task(args.filepath)
+
+def task(csvString):
+    analyzer = GraphAnalyzer(csvString)
+    return analyzer.analyze_graph()
+
+print(task("1,2\n2,3\n2,4\n3,5\n3,6"))
